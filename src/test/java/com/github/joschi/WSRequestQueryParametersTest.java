@@ -9,13 +9,16 @@ import play.libs.ws.StandaloneWSResponse;
 import play.libs.ws.ahc.StandaloneAhcWSClient;
 import play.shaded.ahc.org.asynchttpclient.DefaultAsyncHttpClient;
 
+import java.net.HttpURLConnection;
+import java.net.URL;
+
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
-import static com.github.tomakehurst.wiremock.client.WireMock.urlMatching;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.verify;
 import static org.junit.Assert.assertEquals;
 
@@ -39,7 +42,7 @@ public class WSRequestQueryParametersTest {
         StandaloneWSResponse wsResponse = wsRequest.get().toCompletableFuture().get();
         assertEquals(200, wsResponse.getStatus());
 
-        verify(getRequestedFor(urlMatching("/path")).withQueryParam("the+plus+must+remain", equalTo("")));
+        verify(getRequestedFor(urlPathEqualTo("/path")).withQueryParam("the+plus+must+remain", equalTo("")));
     }
 
     @Test
@@ -58,6 +61,23 @@ public class WSRequestQueryParametersTest {
         StandaloneWSResponse wsResponse = wsRequest.get().toCompletableFuture().get();
         assertEquals(200, wsResponse.getStatus());
 
-        verify(getRequestedFor(urlMatching("/path")).withQueryParam("the+plus+must+remain", equalTo("")));
+        verify(getRequestedFor(urlPathEqualTo("/path")).withQueryParam("the+plus+must+remain", equalTo("")));
+    }
+
+    @Test
+    public void javaUrlConnection() throws Exception {
+        String requestUrl = wireMockRule.url("/path");
+        URL url = new URL(requestUrl + "?the+plus+must+remain");
+        stubFor(get(urlEqualTo("/path?the+plus+must+remain")).willReturn(aResponse()
+                .withStatus(200)
+                .withBody("OK")));
+
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
+        connection.connect();
+
+        assertEquals(200, connection.getResponseCode());
+
+        verify(getRequestedFor(urlPathEqualTo("/path")).withQueryParam("the+plus+must+remain", equalTo("")));
     }
 }
